@@ -1,0 +1,40 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy API package files first for caching
+COPY application/api/package.json ./package.json
+
+# Install ALL dependencies (including devDependencies for build)
+RUN npm install
+
+# Copy packages (shared types)
+COPY packages ../packages
+
+# Copy API source (excluding node_modules)
+COPY application/api/src ./src
+COPY application/api/tsconfig.json application/api/tsconfig.build.json application/api/build.mjs ./
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY application/api/package.json ./package.json
+
+# Install only production dependencies
+RUN npm install --omit=dev
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Create storage directory
+RUN mkdir -p /data/scans
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.js"]

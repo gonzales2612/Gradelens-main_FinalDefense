@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CV Compute — Preview test</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #5b9cf5;
+      --good: #3ecf8e;
+      --warn: #e6a23c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.25rem;
+      line-height: 1.5;
+      max-width: 1400px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.25rem; }
+    .sub { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.25rem; }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; color: var(--muted); }
+    input[type="file"], select, button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 500;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .status {
+      font-size: 0.85rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+    }
+    .status.ok { border-color: var(--good); }
+    .status.err { border-color: #e85d5d; color: #f5a8a8; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.8rem;
+    }
+    .metric strong { display: block; color: var(--muted); font-weight: 500; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stage h3 {
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+    .stage .img-wrap {
+      aspect-ratio: 4/3;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stage img {
+      max-width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+    }
+    .stage .missing {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 2rem;
+      text-align: center;
+    }
+    .ready { color: var(--good); }
+    .not-ready { color: var(--warn); }
+  </style>
+</head>
+<body>
+  <h1>Preview API test</h1>
+  <p class="sub">Open via the API: <code>/dev/preview_test.html</code> (same origin). <strong>Live preview</strong> returns base64 stages; <strong>Full pipeline</strong> runs <code>grade.run_detection_pipeline</code> and loads nine JPEGs from <code>/storage/…</code>.</p>
+
+  <div class="row">
+    <label>
+      Image
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp" />
+    </label>
+    <label>
+      Template
+      <select id="template"></select>
+    </label>
+    <button type="button" id="run" disabled>Live preview</button>
+    <button type="button" id="runFull" disabled>Full pipeline (9 stages)</button>
+    <button type="button" id="health" class="secondary">Ping /health</button>
+  </div>
+
+  <div id="status" class="status" hidden></div>
+
+  <div id="metrics" class="metrics" hidden></div>
+
+  <section class="pipeline" id="pipeline" aria-live="polite"></section>
+
+  <script>
+    const API = ""; // same origin
+    const fileInput = document.getElementById("file");
+    const templateSelect = document.getElementById("template");
+    const runBtn = document.getElementById("run");
+    const runFullBtn = document.getElementById("runFull");
+    const healthBtn = document.getElementById("health");
+    const statusEl = document.getElementById("status");
+    const metricsEl = document.getElementById("metrics");
+    const pipelineEl = document.getElementById("pipeline");
+
+    function showStatus(text, isError) {
+      statusEl.hidden = false;
+      statusEl.textContent = text;
+      statusEl.className = "status " + (isError ? "err" : "ok");
+    }
+
+    function b64ToDataUrl(b64, mime) {
+      if (!b64) return null;
+      return "data:" + mime + ";base64," + b64;
+    }
+
+    const STAGES = [
+      { key: "original_image", label: "Original" },
+      { key: "grayscale_image", label: "Grayscale" },
+      { key: "clahe_image", label: "CLAHE" },
+      { key: "preprocessed_image", label: "Binary" },
+      { key: "warped_image", label: "Perspective corrected" },
+    ];
+
+    const FULL_STAGES = [
+      { key: "original", label: "Original" },
+      { key: "grayscale", label: "Grayscale" },
+      { key: "clahe", label: "CLAHE" },
+      { key: "binary", label: "Binary" },
+      { key: "paper_detection", label: "Paper detection" },
+      { key: "perspective_corrected", label: "Perspective corrected" },
+      { key: "aligned", label: "Aligned" },
+      { key: "roi_extraction", label: "ROI extraction" },
+      { key: "fill_scoring", label: "Fill scoring & detection" },
+    ];
+
+    function renderPipeline(data) {
+      pipelineEl.innerHTML = "";
+      for (const { key, label } of STAGES) {
+        const wrap = document.createElement("div");
+        wrap.className = "stage";
+        const h = document.createElement("h3");
+        h.textContent = label;
+        wrap.appendChild(h);
+        const inner = document.createElement("div");
+        inner.className = "img-wrap";
+        const raw = data[key];
+        if (raw) {
+          const img = document.createElement("img");
+          img.alt = label;
+          img.src = b64ToDataUrl(raw, "image/jpeg");
+          img.loading = "lazy";
+          inner.appendChild(img);
+        } else {
+          const p = document.createElement("div");
+          p.className = "missing";
+          p.textContent = key === "clahe_image" ? "Not returned (optional stage)" : "Not in response";
+          inner.appendChild(p);
+        }
+        wrap.appendChild(inner);
+        pipelineEl.appendChild(wrap);
+      }
+    }
+
+    function renderFullPipeline(pipelineImages) {
+      pipelineEl.innerHTML = "";
+      const pi = pipelineImages || {};
+      for (const { key, label } of FULL_STAGES) {
+        const wrap = document.createElement("div");
+        wrap.className = "stage";
+        const h = document.createElement("h3");
+        h.textContent = label;
+        wrap.appendChild(h);
+        const inner = document.createElement("div");
+        inner.className = "img-wrap";
+        const rel = pi[key];
+        if (rel) {
+          const img = document.createElement("img");
+          img.alt = label;
+          img.src = API + "/storage/" + rel.replace(/^\/?/, "") + "?t=" + Date.now();
+          img.loading = "lazy";
+          inner.appendChild(img);
+        } else {
+          const p = document.createElement("div");
+          p.className = "missing";
+          p.textContent = "Not generated (pipeline failed or skipped this asset)";
+          inner.appendChild(p);
+        }
+        wrap.appendChild(inner);
+        pipelineEl.appendChild(wrap);
+      }
+    }
+
+    function renderMetrics(data) {
+      const q = data.quality_feedback || {};
+      const items = [
+        ["Message", q.message || "—"],
+        ["Ready to scan", String(!!q.ready_to_scan)],
+        ["Paper detected", String(!!data.paper_detected)],
+        ["Marks", `${data.marks_detected} detected`],
+        ["Image size", `${data.image_width}×${data.image_height}`],
+        ["Quality score", data.quality_score != null ? data.quality_score.toFixed(3) : "—"],
+        ["Blur score", data.blur_score != null ? String(data.blur_score) : "—"],
+        ["Brightness", data.brightness != null ? data.brightness.toFixed(1) : "—"],
+        ["Skew °", data.skew_angle != null ? data.skew_angle.toFixed(2) : "—"],
+        ["Perspective Q", data.perspective_quality != null ? data.perspective_quality.toFixed(3) : "—"],
+      ];
+      metricsEl.innerHTML = items.map(
+          ([k, v]) =>
+            `<div class="metric"><strong>${k}</strong><span class="${k === "Ready to scan" && q.ready_to_scan ? "ready" : ""}">${v}</span></div>`
+        )
+        .join("");
+      metricsEl.hidden = false;
+    }
+
+    function renderFullMetrics(data) {
+      const qm = data.quality_metrics || {};
+      const errSummary =
+        data.errors && data.errors.length
+          ? data.errors.map((e) => e.message).join("; ")
+          : "—";
+      const warnSummary =
+        data.warnings && data.warnings.length
+          ? data.warnings.length + " warning(s)"
+          : "—";
+      const items = [
+        ["Scan id", data.scan_id || "—"],
+        ["Status", data.status || "—"],
+        ["Template", data.template_id || "—"],
+        ["Time (ms)", data.processing_time_ms != null ? Number(data.processing_time_ms).toFixed(0) : "—"],
+        ["Questions", String((data.detections && data.detections.length) || 0)],
+        ["Warnings", warnSummary],
+        ["Errors", errSummary],
+        ["Blur", qm.blur_score != null ? String(qm.blur_score) : "—"],
+        ["Brightness", qm.brightness_mean != null ? qm.brightness_mean.toFixed(1) : "—"],
+      ];
+      metricsEl.innerHTML = items
+        .map(
+          ([k, v]) =>
+            `<div class="metric"><strong>${k}</strong><span>${escapeHtml(v)}</span></div>`
+        )
+        .join("");
+      metricsEl.hidden = false;
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function loadTemplates() {
+      templateSelect.innerHTML = "";
+      const r = await fetch(API + "/templates");
+      if (!r.ok) {
+        showStatus("GET /templates failed: " + r.status, true);
+        return;
+      }
+      const ids = await r.json();
+      for (const id of ids) {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = id;
+        templateSelect.appendChild(o);
+      }
+      syncButtons();
+      showStatus("Loaded " + ids.length + " template(s).", false);
+    }
+
+    function syncButtons() {
+      const ok = !!(fileInput.files?.length && templateSelect.value);
+      runBtn.disabled = !ok;
+      runFullBtn.disabled = !ok;
+    }
+
+    fileInput.addEventListener("change", syncButtons);
+
+    templateSelect.addEventListener("change", syncButtons);
+
+    runBtn.addEventListener("click", async () => {
+      const f = fileInput.files?.[0];
+      if (!f) return;
+      runBtn.disabled = true;
+      showStatus("Encoding and POST /preview …", false);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const dataUrl = reader.result;
+          const base64 = dataUrl.split(",")[1];
+          const body = {
+            image: base64,
+            template_id: templateSelect.value,
+          };
+          const r = await fetch(API + "/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const text = await r.text();
+          if (!r.ok) {
+            showStatus("POST /preview " + r.status + "\n" + text, true);
+            pipelineEl.innerHTML = "";
+            metricsEl.hidden = true;
+            return;
+          }
+          const data = JSON.parse(text);
+          showStatus("OK — " + (data.quality_feedback?.message || "done"), false);
+          renderMetrics(data);
+          renderPipeline(data);
+        } catch (e) {
+          showStatus(String(e), true);
+        } finally {
+          syncButtons();
+        }
+      };
+      reader.onerror = () => {
+        showStatus("File read failed", true);
+        syncButtons();
+      };
+      reader.readAsDataURL(f);
+    });
+
+    runFullBtn.addEventListener("click", async () => {
+      const f = fileInput.files?.[0];
+      if (!f) return;
+      runBtn.disabled = true;
+      runFullBtn.disabled = true;
+      showStatus("POST /preview/full (full pipeline, may take several seconds)…", false);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const dataUrl = reader.result;
+          const base64 = dataUrl.split(",")[1];
+          const body = {
+            image: base64,
+            template_id: templateSelect.value,
+          };
+          const r = await fetch(API + "/preview/full", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const text = await r.text();
+          if (!r.ok) {
+            showStatus("POST /preview/full " + r.status + "\n" + text, true);
+            pipelineEl.innerHTML = "";
+            metricsEl.hidden = true;
+            return;
+          }
+          const data = JSON.parse(text);
+          showStatus(
+            "Full pipeline: " + (data.status || "?") + " — " + (data.scan_id || ""),
+            data.status === "failed"
+          );
+          renderFullMetrics(data);
+          renderFullPipeline(data.pipeline_images);
+        } catch (e) {
+          showStatus(String(e), true);
+        } finally {
+          syncButtons();
+        }
+      };
+      reader.onerror = () => {
+        showStatus("File read failed", true);
+        syncButtons();
+      };
+      reader.readAsDataURL(f);
+    });
+
+    healthBtn.addEventListener("click", async () => {
+      try {
+        const r = await fetch(API + "/health");
+        const j = await r.json();
+        showStatus(JSON.stringify(j, null, 2), !r.ok);
+      } catch (e) {
+        showStatus(String(e), true);
+      }
+    });
+
+    loadTemplates();
+  </script>
+</body>
+</html>

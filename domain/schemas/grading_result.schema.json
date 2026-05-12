@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Grading Result Schema",
+  "description": "Business logic output from Node.js layer - applies grading policy and determines correctness",
+  "type": "object",
+  "required": ["scan_id", "exam_id", "status", "grades"],
+  "properties": {
+    "scan_id": {
+      "type": "string",
+      "description": "Reference to the scan"
+    },
+    "exam_id": {
+      "type": "string",
+      "description": "Reference to the exam/answer key used"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["graded", "needs_review", "failed"],
+      "description": "Overall grading status"
+    },
+    "grades": {
+      "type": "array",
+      "description": "Per-question grading results",
+      "items": {
+        "type": "object",
+        "required": ["question_id", "detected", "correct_answer", "is_correct"],
+        "properties": {
+          "question_id": {
+            "type": "integer"
+          },
+          "detected": {
+            "type": "array",
+            "description": "What was detected by CV (can be empty or multiple)",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]$"
+            }
+          },
+          "correct_answer": {
+            "type": "string",
+            "description": "The correct answer from answer key",
+            "pattern": "^[A-Z]$"
+          },
+          "is_correct": {
+            "type": ["boolean", "null"],
+            "description": "Whether the answer is correct (null if unanswered or ambiguous)"
+          },
+          "points_earned": {
+            "type": "number",
+            "description": "Points awarded for this question"
+          },
+          "points_possible": {
+            "type": "number",
+            "description": "Maximum points for this question"
+          },
+          "requires_review": {
+            "type": "boolean",
+            "description": "Whether this question needs manual review",
+            "default": false
+          },
+          "review_reason": {
+            "type": "string",
+            "enum": ["ambiguous", "unanswered", "low_confidence", "multiple_marks"],
+            "description": "Why manual review is needed"
+          }
+        }
+      }
+    },
+    "score": {
+      "type": "object",
+      "description": "Overall score summary",
+      "required": ["points_earned", "points_possible"],
+      "properties": {
+        "points_earned": {
+          "type": "number",
+          "description": "Total points earned"
+        },
+        "points_possible": {
+          "type": "number",
+          "description": "Maximum possible points"
+        },
+        "percentage": {
+          "type": "number",
+          "description": "Score as percentage (0-100)"
+        },
+        "correct_count": {
+          "type": "integer",
+          "description": "Number of correct answers"
+        },
+        "incorrect_count": {
+          "type": "integer",
+          "description": "Number of incorrect answers"
+        },
+        "unanswered_count": {
+          "type": "integer",
+          "description": "Number of unanswered questions"
+        },
+        "ambiguous_count": {
+          "type": "integer",
+          "description": "Number of ambiguous answers"
+        }
+      }
+    },
+    "needs_manual_review": {
+      "type": "boolean",
+      "description": "Whether any questions require manual review"
+    },
+    "graded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When grading was completed"
+    },
+    "graded_by": {
+      "type": "string",
+      "description": "User ID if manually reviewed, 'system' if automatic"
+    }
+  }
+}

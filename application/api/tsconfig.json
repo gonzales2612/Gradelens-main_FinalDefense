@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@/*": ["application/api/src/*"],
+      "@packages/*": ["packages/*"]
+    }
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "include": ["src"]
+}

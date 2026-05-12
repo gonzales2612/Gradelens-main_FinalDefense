@@ -1,0 +1,43 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY presentation/frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy packages directory to match tsconfig paths (../../packages from /app)
+COPY packages /packages
+
+# Copy environment file
+COPY presentation/frontend/.env.production .env
+
+# Copy frontend source code
+COPY presentation/frontend/tsconfig.json ./
+COPY presentation/frontend/tsconfig.node.json ./
+COPY presentation/frontend/tsconfig.app.json ./
+COPY presentation/frontend/vite.config.ts ./
+COPY presentation/frontend/components.json ./
+COPY presentation/frontend/eslint.config.js ./
+COPY presentation/frontend/index.html ./
+COPY presentation/frontend/public ./public
+COPY presentation/frontend/src ./src
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built assets from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY presentation/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

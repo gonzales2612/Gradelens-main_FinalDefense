@@ -1,0 +1,37 @@
+{
+  "name": "gradelens-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "node build.mjs",
+    "start": "node dist/server.js"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.11.30",
+    "@types/uuid": "^10.0.0",
+    "esbuild": "^0.20.0",
+    "glob": "^10.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.3"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "ioredis": "^5.9.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.3.1",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^13.0.0"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Answer Key Schema",
+  "description": "Defines correct answers for an exam (stored in Node.js, used for grading logic)",
+  "type": "object",
+  "required": ["exam_id", "template_id", "answers"],
+  "properties": {
+    "exam_id": {
+      "type": "string",
+      "description": "Unique identifier for this exam instance"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Reference to the template schema used for this exam"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable exam name (e.g., 'Math Midterm - Section A')"
+    },
+    "answers": {
+      "type": "array",
+      "description": "Array of correct answers",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["question_id", "correct"],
+        "properties": {
+          "question_id": {
+            "type": "integer",
+            "description": "Question number (must match template)"
+          },
+          "correct": {
+            "type": "string",
+            "description": "Correct answer option (e.g., 'A', 'B', 'C', 'D')",
+            "pattern": "^[A-Z]$"
+          },
+          "points": {
+            "type": "number",
+            "description": "Points awarded for correct answer",
+            "minimum": 0,
+            "default": 1
+          }
+        }
+      }
+    },
+    "grading_policy": {
+      "type": "object",
+      "description": "Rules for grading this exam",
+      "properties": {
+        "partial_credit": {
+          "type": "boolean",
+          "description": "Whether partial credit is allowed",
+          "default": false
+        },
+        "penalty_incorrect": {
+          "type": "number",
+          "description": "Points deducted for wrong answer (0 = no penalty)",
+          "minimum": 0,
+          "default": 0
+        },
+        "require_manual_review_on_ambiguity": {
+          "type": "boolean",
+          "description": "Whether ambiguous answers must be manually reviewed",
+          "default": true
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "User ID of exam creator"
+        },
+        "total_points": {
+          "type": "number",
+          "description": "Maximum possible score"
+        }
+      }
+    }
+  }
+}

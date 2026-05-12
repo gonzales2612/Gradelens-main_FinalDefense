@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Template Schema",
+  "description": "Defines the physical layout and bubble positions for an exam template",
+  "type": "object",
+  "required": ["template_id", "name", "canonical_size", "registration_marks", "questions"],
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "description": "Unique identifier for this template (e.g., 'form_A', 'midterm_v2')"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable template name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Template version (semantic versioning recommended)",
+      "default": "1.0.0"
+    },
+    "canonical_size": {
+      "type": "object",
+      "description": "Expected dimensions after perspective correction (in pixels)",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "description": "Width in pixels (e.g., 2100 for A4 at 300dpi)"
+        },
+        "height": {
+          "type": "integer",
+          "description": "Height in pixels (e.g., 2970 for A4 at 300dpi)"
+        }
+      }
+    },
+    "registration_marks": {
+      "type": "array",
+      "description": "Alignment markers (black circles/squares) used for fine-tuning perspective",
+      "minItems": 3,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["id", "position", "type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Mark identifier (e.g., 'top_left', 'top_right')"
+          },
+          "position": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": {
+                "type": "integer",
+                "description": "X coordinate in template space"
+              },
+              "y": {
+                "type": "integer",
+                "description": "Y coordinate in template space"
+              }
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["circle", "square"],
+            "description": "Shape of the registration mark"
+          },
+          "size": {
+            "type": "integer",
+            "description": "Radius (for circle) or side length (for square) in pixels",
+            "default": 20
+          }
+        }
+      }
+    },
+    "bubble_config": {
+      "type": "object",
+      "description": "Global bubble appearance settings",
+      "required": ["radius", "fill_threshold", "ambiguous_threshold"],
+      "properties": {
+        "radius": {
+          "type": "integer",
+          "description": "Expected bubble radius in pixels",
+          "minimum": 5,
+          "maximum": 50
+        },
+        "fill_threshold": {
+          "type": "number",
+          "description": "Minimum fill ratio (0-1) to consider a bubble marked",
+          "minimum": 0.1,
+          "maximum": 0.9,
+          "default": 0.3
+        },
+        "ambiguous_threshold": {
+          "type": "number",
+          "description": "Fill ratio above which multiple marks indicate ambiguity",
+          "minimum": 0.1,
+          "maximum": 1.0,
+          "default": 0.65
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Question definitions with bubble coordinates",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["question_id", "options"],
+        "properties": {
+          "question_id": {
+            "type": "integer",
+            "description": "Sequential question number (1-based)"
+          },
+          "options": {
+            "type": "object",
+            "description": "Map of option letter to bubble center coordinates",
+            "patternProperties": {
+              "^[A-Z]$": {
+                "type": "object",
+                "required": ["x", "y"],
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "description": "X coordinate of bubble center"
+                  },
+                  "y": {
+                    "type": "integer",
+                    "description": "Y coordinate of bubble center"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional template information",
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

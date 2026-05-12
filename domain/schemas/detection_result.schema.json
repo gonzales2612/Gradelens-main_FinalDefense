@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Detection Result Schema",
+  "description": "Raw output from Python CV layer - contains FACTS only, no business logic or grading decisions",
+  "type": "object",
+  "required": ["scan_id", "template_id", "status", "detections"],
+  "properties": {
+    "scan_id": {
+      "type": "string",
+      "description": "Reference to the scan job"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Template used for detection"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed", "needs_review"],
+      "description": "Overall detection status"
+    },
+    "detections": {
+      "type": "array",
+      "description": "Per-question detection results",
+      "items": {
+        "type": "object",
+        "required": ["question_id", "fill_ratios", "selected", "detection_status"],
+        "properties": {
+          "question_id": {
+            "type": "integer",
+            "description": "Question number"
+          },
+          "fill_ratios": {
+            "type": "object",
+            "description": "Raw fill ratio for each bubble (0.0 = empty, 1.0 = fully filled)",
+            "patternProperties": {
+              "^[A-Z]$": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0
+              }
+            }
+          },
+          "selected": {
+            "type": "array",
+            "description": "Detected answer(s) - empty if unanswered, multiple if ambiguous",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]$"
+            }
+          },
+          "detection_status": {
+            "type": "string",
+            "enum": ["answered", "unanswered", "ambiguous", "error"],
+            "description": "Status of this specific question detection"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Detection confidence (difference between top 2 fill ratios)"
+          }
+        }
+      }
+    },
+    "quality_metrics": {
+      "type": "object",
+      "description": "Image quality measurements",
+      "properties": {
+        "blur_score": {
+          "type": "number",
+          "description": "Laplacian variance (higher = sharper)"
+        },
+        "brightness_mean": {
+          "type": "number",
+          "description": "Average pixel intensity (0-255)"
+        },
+        "brightness_std": {
+          "type": "number",
+          "description": "Standard deviation of brightness"
+        },
+        "skew_angle": {
+          "type": "number",
+          "description": "Detected skew in degrees"
+        },
+        "perspective_correction_applied": {
+          "type": "boolean",
+          "description": "Whether perspective correction was successful"
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-critical issues detected",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Warning code (e.g., 'LOW_BLUR_SCORE', 'MULTIPLE_AMBIGUOUS')"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable warning message"
+          },
+          "question_id": {
+            "type": "integer",
+            "description": "Related question (if applicable)"
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "Critical errors that prevented processing",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code (e.g., 'PAPER_NOT_DETECTED', 'TEMPLATE_MISMATCH')"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Pipeline stage where error occurred"
+          }
+        }
+      }
+    },
+    "processing_time_ms": {
+      "type": "number",
+      "description": "Total processing time in milliseconds"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When detection was completed"
+    }
+  }
+}

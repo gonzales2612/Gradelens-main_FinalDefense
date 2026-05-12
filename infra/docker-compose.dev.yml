@@ -1,0 +1,86 @@
+services:
+
+  # Node API
+  api:
+    build:
+      context: ../application/api
+    container_name: gradelens-api
+    depends_on:
+      mongo:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      MONGO_URL: mongodb://mongo:27017/gradelens
+      REDIS_URL: redis://redis:6379/0
+      SCAN_STORAGE_DIR: /data/scans
+      JWT_ACCESS_SECRET: dev-access-secret-key-change-in-production
+      JWT_REFRESH_SECRET: dev-refresh-secret-key-change-in-production
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    command: npm run dev
+    volumes:
+      - ../storage/scans:/data/scans
+      - ../application/api/src:/app/src
+
+  # Redis
+  redis:
+    image: redis:7
+    container_name: gradelens-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Python CV Worker and API
+  cv-worker:
+    build:
+      context: ../compute/cv
+    container_name: gradelens-cv-worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python -m app.workers.scan_worker
+    volumes:
+      - ../storage/scans:/data/scans
+      - ../storage:/app/storage
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      IMAGE_ROOT: /data/scans
+      DEBUG: "true"
+
+  cv-api:
+    build:
+      context: ../compute/cv
+    container_name: gradelens-cv-api
+    depends_on:
+      - redis
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../compute/cv/app:/app/app
+      - ../compute/cv/main.py:/app/main.py
+      - ../storage:/app/storage
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+
+  # MongoDB
+  mongo:
+      image: 7
+      container_name: gradelens-mongo
+      ports:
+        - "27017:27017"
+      volumes:
+        - mongo_data:/data/db
+      restart: unless-stopped
+
+volumes:
+  mongo_data:
